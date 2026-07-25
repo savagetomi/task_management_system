@@ -1,0 +1,838 @@
+openapi: 3.0.3
+info:
+  title: Task Management API
+  version: 1.0.0
+  description: API documentation for the Task Management System
+paths:
+  /accounts/auth/change-password/:
+    post:
+      operationId: accounts_auth_change_password_create
+      description: Sets a new password for the authenticated user, after verifying
+        their current password. Clears `must_change_password` so the client can stop
+        prompting for a forced change.
+      summary: Change my password
+      tags:
+      - Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePassword'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ChangePassword'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ChangePassword'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangePasswordResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /accounts/auth/login/:
+    post:
+      operationId: accounts_auth_login_create
+      description: Authenticates a user with username/password and returns access
+        + refresh JWTs, plus a `user` payload (role, department, must_change_password)
+        so the client can route a first-login user straight to a forced password-change
+        screen.
+      summary: Log in
+      tags:
+      - Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomTokenObtainPair'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CustomTokenObtainPair'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CustomTokenObtainPair'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /accounts/auth/me/:
+    get:
+      operationId: accounts_auth_me_retrieve
+      description: Returns the authenticated user's own account record.
+      summary: Get my profile
+      tags:
+      - Auth
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeResponse'
+          description: ''
+  /accounts/auth/refresh/:
+    post:
+      operationId: accounts_auth_refresh_create
+      description: |-
+        Takes a refresh type JSON web token and returns an access type JSON web
+        token if the refresh token is valid.
+      tags:
+      - accounts
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefresh'
+          description: ''
+  /accounts/users/:
+    get:
+      operationId: users_list
+      description: Admin-only. Returns every user account in the system.
+      summary: List all users
+      tags:
+      - Users
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListUsersResponse'
+          description: ''
+  /accounts/users/{id}/:
+    get:
+      operationId: users_retrieve
+      description: Admins can retrieve any user; other users can only retrieve themselves.
+      summary: Retrieve a user
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Users
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RetrieveUserResponse'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /accounts/users/{id}/update/:
+    patch:
+      operationId: accounts_users_update_partial_update
+      description: Admin-only. Partial update of a user account — role, department,
+        reports_to, is_active, etc. Enforces FR-4a (reports_to must be in the same
+        department, unless it's an Admin) on every update, not just creation.
+      summary: Update a user
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUser'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUser'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUser'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateUserResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /accounts/users/create/:
+    post:
+      operationId: accounts_users_create_create
+      description: Admin-only. Creates a user account with a system-generated temporary
+        password (PRD FR-2 / FR-2a) — the password is never supplied by the caller.
+        The generated password is returned exactly once, in this response, and must
+        be relayed to the new user; it cannot be retrieved again afterward. The account
+        is created with `must_change_password=True`.
+      summary: Create a new user
+      tags:
+      - Users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserCreate'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateUserResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /departments/departments/:
+    get:
+      operationId: departments_list
+      description: |-
+        GET /api/departments/ — list all departments. Any authenticated user
+        can view the department list (needed for dropdowns etc.); only Admins
+        can create/update (PRD FR-5).
+      summary: List all departments
+      tags:
+      - Departments
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListDepartmentsResponse'
+          description: ''
+  /departments/departments/{id}/:
+    get:
+      operationId: departments_retrieve
+      description: GET /api/departments/<pk>/ — any authenticated user.
+      summary: Retrieve a department
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Departments
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RetrieveDepartmentResponse'
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /departments/departments/{id}/update/:
+    patch:
+      operationId: departments_departments_update_partial_update
+      description: Admin-only. Deactivating (is_active=False) is rejected if the department
+        still has active members (PRD FR-7).
+      summary: Update a department
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Departments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedDepartment'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedDepartment'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedDepartment'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateDepartmentResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /departments/departments/create/:
+    post:
+      operationId: departments_departments_create_create
+      description: Admin-only. `head` is optional — a brand-new department may not
+        have a manager assigned yet (see PRD FR-4a fallback).
+      summary: Create a new department
+      tags:
+      - Departments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Department'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Department'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Department'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateDepartmentResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+components:
+  schemas:
+    ChangePassword:
+      type: object
+      description: |-
+        PRD FR-2a / API: POST /api/auth/change-password/
+        Authenticated user sets their own password, clearing
+        must_change_password once done.
+      properties:
+        current_password:
+          type: string
+          writeOnly: true
+        new_password:
+          type: string
+          writeOnly: true
+      required:
+      - current_password
+      - new_password
+    ChangePasswordResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+      - message
+    CreateDepartmentData:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        head:
+          type: integer
+          nullable: true
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+      required:
+      - created_at
+      - head
+      - id
+      - is_active
+      - name
+    CreateDepartmentResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/CreateDepartmentData'
+      required:
+      - data
+      - message
+    CreateUserData:
+      type: object
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        first_name:
+          type: string
+        last_name:
+          type: string
+        role:
+          type: string
+        department:
+          type: integer
+          nullable: true
+        reports_to:
+          type: integer
+          nullable: true
+        generated_password:
+          type: string
+      required:
+      - department
+      - email
+      - first_name
+      - generated_password
+      - id
+      - last_name
+      - reports_to
+      - role
+      - username
+    CreateUserResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/CreateUserData'
+      required:
+      - data
+      - message
+    CustomTokenObtainPair:
+      type: object
+      description: |-
+        Extends simplejwt's default serializer so the login response includes
+        the fields the frontend needs immediately (role, department,
+        must_change_password) without a follow-up "who am I" call. See PRD
+        FR-1 (JWT auth) and FR-2a (forced password change flow).
+      properties:
+        username:
+          type: string
+          writeOnly: true
+        password:
+          type: string
+          writeOnly: true
+      required:
+      - password
+      - username
+    Department:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        head:
+          type: integer
+          nullable: true
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - name
+    ListDepartmentsResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Department'
+      required:
+      - data
+      - message
+    ListUsersResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+      required:
+      - data
+      - message
+    LoginResponse:
+      type: object
+      properties:
+        access:
+          type: string
+        refresh:
+          type: string
+        user:
+          $ref: '#/components/schemas/LoginUserData'
+      required:
+      - access
+      - refresh
+      - user
+    LoginUserData:
+      type: object
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        first_name:
+          type: string
+        last_name:
+          type: string
+        role:
+          type: string
+        department:
+          type: integer
+          nullable: true
+        reports_to:
+          type: integer
+          nullable: true
+        is_active:
+          type: boolean
+        must_change_password:
+          type: boolean
+        date_joined:
+          type: string
+          format: date-time
+      required:
+      - date_joined
+      - department
+      - email
+      - first_name
+      - id
+      - is_active
+      - last_name
+      - must_change_password
+      - reports_to
+      - role
+      - username
+    MeResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+      - message
+    PatchedDepartment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        head:
+          type: integer
+          nullable: true
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedUser:
+      type: object
+      description: Read/list serializer. Never exposes the password.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          title: Email address
+          oneOf:
+          - type: string
+            format: email
+            maxLength: 254
+          - type: string
+            maxLength: 0
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        role:
+          $ref: '#/components/schemas/RoleEnum'
+        department:
+          type: integer
+          nullable: true
+        reports_to:
+          type: integer
+          nullable: true
+        is_active:
+          type: boolean
+          title: Active
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
+        must_change_password:
+          type: boolean
+          readOnly: true
+        date_joined:
+          type: string
+          format: date-time
+          readOnly: true
+    RetrieveDepartmentResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+      - message
+    RetrieveUserResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+      - message
+    RoleEnum:
+      enum:
+      - admin
+      - manager
+      - employee
+      type: string
+      description: |-
+        * `admin` - Admin
+        * `manager` - Manager
+        * `employee` - Employee
+    TokenRefresh:
+      type: object
+      properties:
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+          writeOnly: true
+      required:
+      - access
+      - refresh
+    UpdateDepartmentResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+      - message
+    UpdateUserResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+      - message
+    User:
+      type: object
+      description: Read/list serializer. Never exposes the password.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          title: Email address
+          oneOf:
+          - type: string
+            format: email
+            maxLength: 254
+          - type: string
+            maxLength: 0
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        role:
+          $ref: '#/components/schemas/RoleEnum'
+        department:
+          type: integer
+          nullable: true
+        reports_to:
+          type: integer
+          nullable: true
+        is_active:
+          type: boolean
+          title: Active
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
+        must_change_password:
+          type: boolean
+          readOnly: true
+        date_joined:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - date_joined
+      - id
+      - must_change_password
+      - username
+    UserCreate:
+      type: object
+      description: |-
+        Admin-only user creation (PRD FR-2). A secure temporary password is
+        auto-generated server-side — it is never supplied by the Admin or the
+        new user at this stage (FR-2a). The generated password is returned
+        exactly once, in this response, so the Admin can relay it (e.g. via
+        the delivery mechanism your org chooses — email is assumed at the PRD
+        level, but this serializer stays transport-agnostic).
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          title: Email address
+          oneOf:
+          - type: string
+            format: email
+            maxLength: 254
+          - type: string
+            maxLength: 0
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        role:
+          $ref: '#/components/schemas/RoleEnum'
+        department:
+          type: integer
+          nullable: true
+        reports_to:
+          type: integer
+          nullable: true
+        generated_password:
+          type: string
+          readOnly: true
+      required:
+      - generated_password
+      - id
+      - username
+  securitySchemes:
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
