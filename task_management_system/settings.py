@@ -29,7 +29,9 @@ SECRET_KEY = os.getenv('SEC_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    'task-management-system-qo1u.onrender.com'
+]
 
 
 # Application definition
@@ -44,6 +46,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'user',
     'departments',
+    'drf_spectacular',
 ]
 
 MIDDLEWARE = [
@@ -59,7 +62,20 @@ MIDDLEWARE = [
 REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly"
-    ]
+    ],
+    "DEFAULT_SCHEMA_CLASS": [
+        "drf_spectacular.openapi.AutoSchema"
+    ],
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+            "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Task Management API",
+    "DESCRIPTION": "API documentation for the Task Management System",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
 }
 
 
